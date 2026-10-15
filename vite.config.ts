@@ -7,5 +7,5 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
 // can be opened as one self-contained file (or hosted anywhere static).
 export default defineConfig({
   plugins: [react(), viteSingleFile()],
-  test: { globals: true, environment: 'node' },
+  test: { globals: true, environment: 'node', include: ['src/**/*.test.{ts,tsx}'] },
 });

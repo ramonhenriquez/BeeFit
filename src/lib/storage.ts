@@ -3,39 +3,39 @@ import { CATEGORIES, DATA_VERSION, DAYS, SLOTS, UNITS } from '../types';
 import { SEED_FOODS, SEED_RECIPES } from '../data/seed';
 
 // ---------------------------------------------------------------------------
-// Persistence goes through a StorageAdapter. Today it's localStorage; a cloud
-// adapter (with accounts and sync) can implement the same interface later
-// without touching the rest of the app.
+// Keep raw bytes at the storage boundary so failed parsing never erases them.
+// Operations are synchronous and must throw on failure. Async storage and
+// migrations need a separately reviewed contract.
 // ---------------------------------------------------------------------------
 
 export interface StorageAdapter {
-  load(): AppData | null;
-  save(data: AppData): void;
-  clear(): void;
+  load(): string | null;
+  save(raw: string): void;
+  backup(raw: string): void;
+  loadBackup(): string | null;
 }
 
-const KEY = 'larder:data:v1';
+export const STORAGE_KEY = 'larder:data:v1';
+export const RECOVERY_KEY = 'larder:recovery:v1';
+
+function browserStorage(): Storage {
+  const storage = globalThis.localStorage;
+  if (!storage) throw new Error('Browser storage is unavailable.');
+  return storage;
+}
 
 export const localStorageAdapter: StorageAdapter = {
   load() {
-    try {
-      const raw = globalThis.localStorage?.getItem(KEY);
-      if (!raw) return null;
-      return parseAppData(JSON.parse(raw));
-    } catch (err) {
-      console.warn('Could not load saved data, starting fresh.', err);
-      return null;
-    }
+    return browserStorage().getItem(STORAGE_KEY);
   },
-  save(data) {
-    try {
-      globalThis.localStorage?.setItem(KEY, JSON.stringify(data));
-    } catch (err) {
-      console.warn('Could not save data.', err);
-    }
+  save(raw) {
+    browserStorage().setItem(STORAGE_KEY, raw);
   },
-  clear() {
-    try { globalThis.localStorage?.removeItem(KEY); } catch { /* ignore */ }
+  backup(raw) {
+    browserStorage().setItem(RECOVERY_KEY, raw);
+  },
+  loadBackup() {
+    return browserStorage().getItem(RECOVERY_KEY);
   },
 };
 
@@ -65,6 +65,7 @@ export function createDefaultData(): AppData {
 // error message rather than letting bad data crash the UI later.
 
 export class ImportError extends Error {}
+export class NewerVersionError extends ImportError {}
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isStr = (v: unknown): v is string => typeof v === 'string';
@@ -144,7 +145,10 @@ export function parseAppData(input: unknown): AppData {
     throw new ImportError('This file is not a Larder backup: it has no foods or recipes.');
   }
   if (isNum(input.version) && input.version > DATA_VERSION) {
-    throw new ImportError('This backup was made by a newer version of the app.');
+    throw new NewerVersionError('This backup was made by a newer version of the app.');
+  }
+  if (input.version !== DATA_VERSION) {
+    throw new ImportError('This backup has an unsupported or missing data version.');
   }
   const defaults = createDefaultData();
   const week = emptyWeek();
