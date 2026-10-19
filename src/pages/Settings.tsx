@@ -4,6 +4,7 @@ import { useStore } from '../store';
 import type { ThemePref } from '../types';
 import { createDefaultData, ImportError, parseAppData } from '../lib/storage';
 import { Button, Chips, useConfirm } from '../components/ui';
+import { applyBeeFitTheme, BEEFIT_THEMES, readBeeFitTheme, type BeeFitTheme } from '../lib/appearance';
 
 // When hosted on claude.ai the page runs in a sandbox where plain download
 // links do nothing, so we use the host's `downloads` capability if present
@@ -32,6 +33,7 @@ export function SettingsPage() {
   const recovery = persistence.kind === 'recovery' ? persistence : null;
   const confirm = useConfirm();
   const fileRef = useRef<HTMLInputElement>(null);
+  const [appearance, setAppearance] = useState<BeeFitTheme>(readBeeFitTheme);
   const [paste, setPaste] = useState('');
   const [error, setError] = useState('');
   const [showJson, setShowJson] = useState(false);
@@ -65,7 +67,7 @@ export function SettingsPage() {
   const exportData = async () => {
     setShowJson(true);
     try {
-      const r = await saveFile(`larder-backup-${new Date().toISOString().slice(0, 10)}.json`, json);
+      const r = await saveFile(`beefit-backup-${new Date().toISOString().slice(0, 10)}.json`, json);
       if (r === 'saved') toast('Backup saved.');
       if (r === 'declined') toast('Backup not saved. You can copy the JSON below instead.');
     } catch { setError('Download could not start. Copy the backup JSON below instead.'); }
@@ -73,7 +75,7 @@ export function SettingsPage() {
 
   const exportRaw = async (raw: string) => {
     try {
-      const result = await saveFile(`larder-recovery-${new Date().toISOString().slice(0, 10)}.txt`, raw);
+      const result = await saveFile(`beefit-recovery-${new Date().toISOString().slice(0, 10)}.txt`, raw);
       if (result === 'declined') setError('Download was declined. Copy the original text below instead.');
     } catch { setError('Download could not start. Copy the original text below instead.'); }
   };
@@ -110,7 +112,16 @@ export function SettingsPage() {
 
       {!recovery && <div className="settings-block">
         <h2>Appearance</h2>
-        <Chips<ThemePref> label="Theme" value={data.settings.theme} onChange={(theme) => update((d) => ({ ...d, settings: { ...d.settings, theme } }))}
+        <p className="muted">Choose a gym-inspired BeeFit theme. Your choice stays in this browser.</p>
+        <div className="beefit-theme-grid" role="group" aria-label="BeeFit theme preset">
+          {BEEFIT_THEMES.map((theme) => (
+            <button key={theme.id} type="button" className={`beefit-theme-card ${appearance === theme.id ? 'is-selected' : ''}`} aria-pressed={appearance === theme.id} onClick={() => { setAppearance(theme.id); applyBeeFitTheme(theme.id); }}>
+              <span className={`beefit-theme-swatch swatch-${theme.id}`} aria-hidden="true" />
+              <strong>{theme.label}</strong><small>{theme.description}</small>
+            </button>
+          ))}
+        </div>
+        <Chips<ThemePref> label="Display mode" value={data.settings.theme} onChange={(theme) => update((d) => ({ ...d, settings: { ...d.settings, theme } }))}
           options={[{ value: 'system', label: 'Match device' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]} />
       </div>}
 
