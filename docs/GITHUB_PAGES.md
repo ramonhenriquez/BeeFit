@@ -60,4 +60,4 @@ The app currently requests Google Fonts, with system font fallbacks. It has no a
 
 ## Verification limits
 
-This preparation runs local type/unit/build checks and Chromium on the project path. It does not enable Pages, change repository visibility, dispatch a live deployment or merge either PR. GitHub-hosted Actions execution, Pages permissions/plan eligibility, custom domains, HTTPS propagation and the live site remain unverified until an administrator enables Pages and deliberately runs the release.
+This preparation runs local type/unit/build checks and Chromium on the project path. It does not enable Pages, change repository visibility, dispatch a live deployment or merge either PR. GitHub-hosted build validation is reported in the PR checks. Pages deployment permissions/plan eligibility, custom domains, HTTPS propagation and the live site remain unverified until an administrator enables Pages and deliberately runs the release.
