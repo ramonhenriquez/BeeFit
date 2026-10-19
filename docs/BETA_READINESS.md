@@ -1,39 +1,20 @@
-# Beta readiness review — 2026-10-19
+# Integrated beta readiness — 2026-10-19
 
-Scope: recovery-safe persistence PR #1 at c83ffd740302b35e9efb930d3910c09bac8d869b, plus a separate GitHub Pages deployment proposal. No persistence, application UI, navigation or calculation code is changed by the deployment PR. No merge or live publication is authorized automatically by this work.
+PR #1, including validation correction f782f81, is merged into main at `0bb6d6f0758dd3f342a32ba7edcdbe13492393e4`. PR #2 now incorporates that main commit. The original silent-data-loss finding is resolved by strict v1 validation and raw-byte-preserving recovery; it is no longer an outstanding blocker. See [the correction and regression coverage](RECOVERY_VALIDATION_FIX.md).
 
-## Must resolve before publishing
+Integration conflicts in `.gitignore`, README, package scripts and Vite configuration were resolved by retaining both features: persistence/Chromium tests and their output exclusions, plus the explicit `/BeeFit/` build mode and environment-file exclusions. Application and persistence code is unchanged from merged main. The portable build and hash navigation are preserved.
 
-1. **P1: Some invalid saved records silently disappear after an unrelated edit.** `src/lib/storage.ts`'s `selection()` returns null for malformed records and `selections()` silently filters them; `parseAppData()` can also substitute empty collections/default fields. `PersistenceSession.read()` treats that parse as successful. The later save overwrites the original bytes with the normalized, incomplete result. This bypasses the recovery screen despite PR #1's protections for thrown errors.
+## Remaining release gates
 
-   Executed synthetic reproduction on PR #1: start with `createDefaultData()`, add a quick meal `{id:'meal', recipeId:data.recipes[0].id, servings:'3'}` (a string, not a number), and serialize it. Construct `PersistenceSession` with that raw value: status is `saved`, while the parsed quick meal has been dropped. Change only theme to dark and save: the stored quick meal count changes from 1 to 0. No recovery error occurs.
+- Review and explicitly merge PR #2. This integration does not merge the deployment PR, enable Pages or dispatch a release.
+- A repository administrator must confirm private-repository Pages plan eligibility and enable Settings → Pages → GitHub Actions. The earlier Pages-settings API request returned 403; eligibility and enablement remain unverified.
+- Configure `github-pages` environment restrictions to main and required review where supported. Manually run the workflow on main only after approval; PR/push runs validate without deploying.
+- Verify the actual hosted site after deliberate publication. Local/static checks and successful CI do not establish live Pages permissions, HTTPS or availability.
 
-   Required fix belongs in the persistence PR or a focused follow-up before beta: invalid records must trigger explicit recovery, not silent omission. Retain original bytes; provide useful validation errors. Add regressions for malformed quick and weekly selections, wrong collection types and other silently defaulted data, and verify that an unrelated edit cannot erase the original. Do not invent a migration or automatically coerce damaged data. Valid v1 records must continue to load.
+## Validation and limitations
 
-2. **PR #1 still needs independent review, fixes and an explicit merge decision.** The GitHub review query showed it OPEN, with no submitted reviews. Do not publish the current main baseline: it still has the original corrupt-load/default-overwrite behavior. The deployment PR is based on main and intentionally does not duplicate or merge PR #1. Revalidate the combined main branch after the independently reviewed persistence fix is merged.
+The integrated validation includes locked installation, TypeScript, all 147 unit tests, all 29 Chromium end-to-end tests, portable production build, Pages production build and artifact checks, plus a static `/BeeFit/` browser smoke check. All local checks passed: 147 unit tests and 29 Chromium tests, no failures/skips. Static hosting without SPA rewrites verified the original meal-to-grocery workflow, hash navigation, reload/backup/theme behavior and malformed-data recovery with exact raw preservation under `/BeeFit/`. A synthetic backup JSON was rejected by the artifact verifier, then removed and the three-file artifact reverified. Optional Google Fonts failed with system fallback. Results are reported in PR #2. GitHub-hosted checks must also pass for the pushed revision.
 
-3. **Confirm Pages eligibility and access before releasing.** The repository is private (verified through the GitHub repository API). The integration cannot inspect Pages settings: HTTP 403, `Resource not accessible by integration`. A repository administrator must confirm the plan supports Pages for a private repository and enable Actions-based Pages. Private source does not generally imply a private website; expect a public site unless an eligible access-control feature is deliberately configured. Do not change repository visibility as a workaround without a separate decision.
+Only index.html and compiled JS/CSS under dist are publishable. The artifact verifier rejects unexpected files such as backup JSON; its file boundary check is not a comprehensive secret scanner. No application secrets or runtime browser data are included by the workflow.
 
-## Verified recovery behavior
-
-On PR #1, application type checking, all 45 unit tests (24 existing plus 21 persistence regressions), the production build and all 12 production Chromium tests passed again. Tested cases include thrown parse errors, newer versions, exact raw export, denied reads, write/backup quota failures, confirmed restore/reset, cancelled reset, durable save warnings, retry of latest work and the food→recipe→planner→pantry→grocery flow. Passing those tests does not cover the silent-normalization defect above. Tests used Linux and system Chromium; failure conditions were injected.
-
-## Beta limitations that do not require a rebuild
-
-- Data is local to a browser profile and origin, without accounts or device synchronization. Users need explicit JSON exports; browser clearing/device loss can remove it. The retained recovery copy shares that risk.
-- Full transactional multi-tab synchronization, complete referential validation, IndexedDB migrations, real-device coverage and general UI accessibility remediation remain separate work. Do not describe them as implemented.
-- Grocery rounding and purchased-state-on-regeneration retain existing behavior. No nutrition or clinical accuracy claims are made.
-- Existing Vite/Vitest advisories concern development/test tooling; the site serves static build output and no Vite server. Keep tooling loopback-only and triage upgrades separately. The deployment workflow exposes no application secrets or write token to PR builds.
-- Google Fonts requests remain external, with system fallback fonts when blocked. There is no PWA/service worker or guaranteed offline web support.
-
-## Release gate
-
-Resolve the data-loss finding, complete independent review of PR #1 and merge it only by an explicit reviewer/maintainer decision. Review the separate deployment PR, enable Pages, and rerun all checks on combined main. Then a maintainer may deliberately run the deployment workflow on main. Neither creating nor merging the deployment PR publishes by itself: push/PR events validate only; `workflow_dispatch` on main publishes after successful checks. Configure a required reviewer for the `github-pages` environment when the plan supports it. The workflow cannot determine whether human review findings have been resolved.
-
-## Deployment-branch validation
-
-The separate deployment branch is based on the unchanged original main source, so its existing unit suite has 24 tests, not PR #1's 45. A clean `npm ci`, standalone type check, all 24 tests and `npm run build:pages` passed. A negative artifact check rejected an injected synthetic `dist/backup.json`; after removal, exactly index.html plus its hashed JS/CSS assets passed verification.
-
-A separate Chromium smoke harness served the compiled artifact at `/BeeFit/` using a plain static server with no SPA fallback. It verified custom food/recipe creation, Monday planning at three servings, 50 g pantry subtraction from 300 g required (250 g groceries), manual item/check-state preservation through regeneration and reload, pasted JSON restore, direct hash navigation across all seven pages, and light/dark theme changes. All seven pages had no document-level horizontal overflow at 1440/390/320 px in the sampled state. No uncaught page errors or failed local assets were observed. Optional Google Fonts requests were blocked; system fonts were used. The existing modal focus-escape accessibility defect remains; this is not a WCAG or real-device certification. No application source was modified in this deployment branch.
-
-This technical re-review does not constitute the requested independent approval of PR #1. No Pages deployment was run. The workflow YAML was parsed locally and the official action version SHAs checked against upstream GitHub metadata. Consult the deployment PR checks for current GitHub-hosted validation results; a successful build check is not evidence that a live Pages deployment has run.
+Data remains local to each browser profile/device and origin; paths on the same origin do not isolate storage. Export independent backups. Recovery copies do not survive browser-data clearing. Full referential validation, transactional multi-tab synchronization, IndexedDB, general UI accessibility remediation, other browser engines and real-device coverage remain follow-up work. Existing development-tool advisories remain; the published app is static and exposes no Vite server. External Google Fonts can fail with system-font fallback. There is no PWA/offline guarantee or new nutrition/account/fitness feature.

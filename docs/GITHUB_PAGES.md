@@ -4,7 +4,7 @@ This is deployment of the existing React/TypeScript app. No account, server, nut
 
 ## Before first publication
 
-Read [BETA_READINESS.md](BETA_READINESS.md). Resolve the reproduced silent-loss validation issue, complete independent review of recovery PR #1, and have a maintainer explicitly merge the reviewed fix. The current original main baseline is not safe to release. After that, review/merge this deployment PR and validate the combined main branch. If Vite/README/package script conflicts arise when merging the two PRs, preserve both the persistence test configuration/scripts and this Pages build mode.
+Read [BETA_READINESS.md](BETA_READINESS.md). Recovery PR #1, including the silent-loss validation fix, was merged into main as `0bb6d6f0758dd3f342a32ba7edcdbe13492393e4`. This deployment branch incorporates that main commit and preserves both the persistence test configuration/scripts and the Pages build mode. Review PR #2 before merging it; publication remains a separate manual action.
 
 The repository is currently private. GitHub Pages for a private repository requires a supporting plan (such as Pro for a personal repository, or an eligible organization plan). An administrator must confirm eligibility. The API integration returned 403 for Pages settings, so existing enablement and plan eligibility are unverified. Do not make the repository public merely to bypass an eligibility error. A website published from private source is generally public unless eligible Pages access controls are explicitly enabled; never assume repository privacy protects published assets.
 
@@ -37,7 +37,7 @@ The preview serves the build at `/BeeFit/`; visit that path, not just `/`. In Po
 
 Navigation remains the existing `#/dashboard`, `#/recipes`, etc. Hash routes are handled in the browser, so GitHub Pages does not need server rewrites or a copied 404.html. Do not replace these with server-style routes in this deployment change.
 
-When recovery PR #1 is merged, also run its documented Chromium suite against the combined code. Its existing browser harness uses root-relative test URLs; a dedicated Pages-path smoke check was executed during this deployment preparation, but the root-based recovery harness is not a substitute for production project-path checks.
+Run the documented Chromium suite against the combined code using `npm run test:e2e`. Its existing browser harness uses root-relative test URLs; a dedicated Pages-path smoke check was executed during this deployment preparation, but the root-based recovery harness is not a substitute for production project-path checks.
 
 ## Browser data and privacy
 

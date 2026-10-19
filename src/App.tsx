@@ -8,6 +8,7 @@ import { PlannerPage, type PlannerTab } from './pages/Planner';
 import { ShoppingPage } from './pages/Shopping';
 import { PantryPage } from './pages/Pantry';
 import { SettingsPage } from './pages/Settings';
+import { Button } from './components/ui';
 
 export type Page = 'dashboard' | 'foods' | 'recipes' | 'planner' | 'shopping' | 'pantry' | 'settings';
 
@@ -26,7 +27,7 @@ const pageFromHash = (): Page => {
 };
 
 export function App() {
-  const { data, toastMsg } = useStore();
+  const { data, toastMsg, persistence, retrySave } = useStore();
   const [page, setPage] = useState<Page>(pageFromHash);
   const [plannerTab, setPlannerTab] = useState<PlannerTab>('week');
 
@@ -50,6 +51,11 @@ export function App() {
   };
 
   const left = data.grocery.filter((g) => !g.checked).length;
+
+  // A failed load must be resolved explicitly before any ordinary editing.
+  if (persistence.kind === 'recovery') {
+    return <main className="main"><SettingsPage /></main>;
+  }
 
   return (
     <div className="shell">
@@ -75,6 +81,16 @@ export function App() {
         </ul>
       </nav>
       <main id="main" className="main">
+        {persistence.kind === 'error' && (
+          <aside className="persistence-warning" role="alert">
+            <strong>Changes are not saved</strong>
+            <p>{persistence.message}</p>
+            <div className="btn-row">
+              <Button onClick={() => retrySave()}>Retry saving</Button>
+              <Button onClick={() => go('settings')}>Open backup options</Button>
+            </div>
+          </aside>
+        )}
         {page === 'dashboard' && <DashboardPage go={go} />}
         {page === 'foods' && <FoodsPage />}
         {page === 'recipes' && <RecipesPage />}

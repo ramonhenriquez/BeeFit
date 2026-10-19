@@ -5,7 +5,7 @@ on:
     branches: [main]
   push:
     branches: [main]
-  # Publication is deliberate while recovery PR #1 awaits review and fixes.
+  # Publication remains a deliberate release after validation and review.
   workflow_dispatch:
 
 permissions:
