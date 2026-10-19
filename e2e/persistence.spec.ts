@@ -46,15 +46,38 @@ const downloadText = async (page: Page, name: string) => {
   return Buffer.concat(parts).toString('utf8');
 };
 
+function damagedSnapshot(path: string, value: unknown): string {
+  const data = createDefaultData();
+  const keys = path.split('.');
+  let target = data as unknown as Record<string, unknown>;
+  for (const key of keys.slice(0, -1)) target = target[key] as Record<string, unknown>;
+  target[keys[keys.length - 1]] = value;
+  return JSON.stringify(data, null, 2);
+}
+const validMeal = { id: 'kept', recipeId: createDefaultData().recipes[0].id, servings: 3 };
+
 for (const [name, raw] of [
   ['corrupt JSON', '{broken\n\u2603'],
   ['invalid schema', JSON.stringify({ version: 1, foods: 'bad', recipes: [] })],
   ['newer version', JSON.stringify({ ...createDefaultData(), version: 2, future: 'keep me' })],
+  ['malformed quick selection', damagedSnapshot('quick', [validMeal, { ...validMeal, id: 'bad', servings: '3' }])],
+  ['malformed weekly selection', damagedSnapshot('week.mon.dinner', [validMeal, { ...validMeal, id: 'bad', servings: '3' }])],
+  ['missing selection id', damagedSnapshot('quick', [{ recipeId: validMeal.recipeId, servings: 3 }])],
+  ['invalid weekly servings', damagedSnapshot('week.fri.lunch', [{ ...validMeal, servings: 0 }])],
+  ['wrong quick collection', damagedSnapshot('quick', {})],
+  ['wrong weekly collection', damagedSnapshot('week.mon.dinner', {})],
+  ['wrong week object', damagedSnapshot('week', [])],
+  ['missing quick collection', damagedSnapshot('quick', undefined)],
+  ['missing grocery collection', damagedSnapshot('grocery', undefined)],
+  ['missing weekday', damagedSnapshot('week.mon', undefined)],
+  ['unsupported meal slot', damagedSnapshot('week.mon.snacks', [validMeal])],
+  ['wrong settings object', damagedSnapshot('settings', [])],
 ] as const) {
   test(`${name}: mount, lifecycle flush, retry and reload preserve original bytes`, async ({ page }) => {
     await seed(page, raw); await page.goto('/');
     await expect(page.getByRole('heading', { name: 'Recover saved data' })).toBeVisible();
     await expect(page.getByLabel('Original saved data')).toHaveValue(raw);
+    await expect(page.getByRole('radio', { name: 'Dark', exact: true })).toHaveCount(0);
     await page.waitForTimeout(600); // Past the ordinary debounce, including StrictMode mount effects.
     await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
     expect(await saved(page)).toBe(raw);
@@ -212,4 +235,36 @@ test('food → recipe → meal plan → pantry → groceries still scales and pe
   expect(data.grocery.some((g: { name: string }) => g.name === 'Regression towels')).toBe(true);
   expect(data.pantry.find((p: { foodId: string }) => p.foodId === foodId).quantity).toBe(50);
   expect(errors).toEqual([]);
+});
+
+
+test('a malformed-selection import is rejected without replacing a valid open plan', async ({ page }) => {
+  const data = createDefaultData(); data.quick = [validMeal]; data.week.mon.dinner = [{ ...validMeal, id: 'weekly' }];
+  const raw = JSON.stringify(data, null, 2); await seed(page, raw); await page.goto('/#/settings');
+  await page.getByLabel('Paste backup JSON').fill(damagedSnapshot('quick', [validMeal, { ...validMeal, servings: '3' }]));
+  await page.getByRole('button', { name: 'Import pasted JSON' }).click();
+  await expect(page.getByRole('alert')).toContainText('quick[1].servings');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  expect(await saved(page)).toBe(raw); expect(await checkpoint(page)).toBeNull();
+  await page.getByRole('radio', { name: 'Dark', exact: true }).click();
+  await expect.poll(async () => JSON.parse((await saved(page))!).settings.theme).toBe('dark');
+  const after = JSON.parse((await saved(page))!);
+  expect(after.quick).toEqual(data.quick); expect(after.week).toEqual(data.week);
+  await page.reload(); await expect(page.getByRole('heading', { name: 'Settings & backup' })).toBeVisible();
+});
+
+test('a valid populated backup retains quick and weekly selections through restore and unrelated edits', async ({ page }) => {
+  const data = createDefaultData(); data.quick = [{ ...validMeal, servings: 0.5 }];
+  data.week.fri.lunch = [{ ...validMeal, id: 'weekly', servings: 4 }];
+  data.foods[0].custom = false; data.recipes[0].prepMinutes = 0;
+  await seed(page, JSON.stringify(createDefaultData())); await page.goto('/#/settings');
+  await page.getByLabel('Paste backup JSON').fill(JSON.stringify(data));
+  await page.getByRole('button', { name: 'Import pasted JSON' }).click();
+  await page.getByRole('button', { name: 'Import backup', exact: true }).click();
+  await expect.poll(async () => JSON.parse((await saved(page))!).quick).toEqual(data.quick);
+  await page.reload(); await expect(page.getByRole('heading', { name: 'Settings & backup' })).toBeVisible();
+  await page.getByRole('radio', { name: 'Dark', exact: true }).click();
+  await expect.poll(async () => JSON.parse((await saved(page))!).settings.theme).toBe('dark');
+  const after = JSON.parse((await saved(page))!);
+  expect(after).toEqual({ ...JSON.parse(JSON.stringify(data)), settings: { ...data.settings, theme: 'dark' } });
 });

@@ -73,72 +73,113 @@ const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFin
 const isUnit = (v: unknown): v is Unit => isStr(v) && (UNITS as readonly string[]).includes(v);
 const isCat = (v: unknown): v is Category => isStr(v) && (CATEGORIES as readonly string[]).includes(v);
 
-function arr<T>(v: unknown, name: string, check: (x: unknown, i: number) => T): T[] {
-  if (v === undefined) return [];
-  if (!Array.isArray(v)) throw new ImportError(`"${name}" should be a list.`);
-  return v.map((x, i) => check(x, i));
+// Reject damaged or unsupported v1 fields instead of repairing/dropping data.
+// Schema changes need explicit migrations, not defaults at the read boundary.
+function object(v: unknown, name: string, keys: readonly string[]): Record<string, unknown> {
+  if (!isObj(v)) throw new ImportError(`"${name}" should be an object.`);
+  for (const key of Object.keys(v)) {
+    if (!keys.includes(key)) throw new ImportError(`"${name}.${key}" is not supported by this data version.`);
+  }
+  return v;
 }
 
-function food(x: unknown, i: number): Food {
-  if (!isObj(x) || !isStr(x.id) || !isStr(x.name) || !x.name.trim()) throw new ImportError(`Food #${i + 1} is missing an id or name.`);
+function field<T>(v: unknown, name: string, check: (x: unknown) => x is T): T {
+  if (!check(v)) throw new ImportError(`"${name}" is missing or invalid.`);
+  return v;
+}
+
+function optional<T>(v: unknown, name: string, check: (x: unknown) => x is T): T | undefined {
+  return v === undefined ? undefined : field(v, name, check);
+}
+
+const isName = (v: unknown): v is string => isStr(v) && v.trim().length > 0;
+const isBool = (v: unknown): v is boolean => typeof v === 'boolean';
+const isPositive = (v: unknown): v is number => isNum(v) && v > 0;
+const isNonNegative = (v: unknown): v is number => isNum(v) && v >= 0;
+const isTheme = (v: unknown): v is AppData['settings']['theme'] => v === 'system' || v === 'light' || v === 'dark';
+const isSource = (v: unknown): v is AppData['settings']['listSource'] => v === 'quick' || v === 'week' || v === 'both';
+
+function arr<T>(v: unknown, name: string, check: (x: unknown, i: number) => T): T[] {
+  if (!Array.isArray(v)) throw new ImportError(`"${name}" should be a list.`);
+  return Array.from(v, (x, i) => check(x, i));
+}
+
+function food(v: unknown, i: number): Food {
+  const name = `foods[${i}]`;
+  const x = object(v, name, ['id', 'name', 'category', 'defaultQuantity', 'defaultUnit', 'notes', 'custom']);
   return {
-    id: x.id, name: x.name.trim(),
-    category: isCat(x.category) ? x.category : 'other',
-    defaultQuantity: isNum(x.defaultQuantity) && x.defaultQuantity > 0 ? x.defaultQuantity : 1,
-    defaultUnit: isUnit(x.defaultUnit) ? x.defaultUnit : 'piece',
-    notes: isStr(x.notes) ? x.notes : undefined,
-    custom: x.custom === true || undefined,
+    id: field(x.id, `${name}.id`, isName), name: field(x.name, `${name}.name`, isName),
+    category: field(x.category, `${name}.category`, isCat),
+    defaultQuantity: field(x.defaultQuantity, `${name}.defaultQuantity`, isPositive),
+    defaultUnit: field(x.defaultUnit, `${name}.defaultUnit`, isUnit),
+    notes: optional(x.notes, `${name}.notes`, isStr),
+    custom: optional(x.custom, `${name}.custom`, isBool),
   };
 }
 
-function recipe(x: unknown, i: number): Recipe {
-  if (!isObj(x) || !isStr(x.id) || !isStr(x.name)) throw new ImportError(`Recipe #${i + 1} is missing an id or name.`);
-  const ingredients = arr(x.ingredients, `recipes[${i}].ingredients`, (g, j) => {
-    if (!isObj(g) || !isStr(g.foodId) || !isNum(g.quantity) || !isUnit(g.unit)) {
-      throw new ImportError(`Ingredient #${j + 1} of "${x.name}" is invalid.`);
-    }
-    return { foodId: g.foodId, quantity: g.quantity, unit: g.unit, note: isStr(g.note) ? g.note : undefined };
+function recipe(v: unknown, i: number): Recipe {
+  const name = `recipes[${i}]`;
+  const x = object(v, name, ['id', 'name', 'description', 'emoji', 'servings', 'ingredients', 'instructions', 'prepMinutes', 'custom']);
+  const ingredients = arr(x.ingredients, `${name}.ingredients`, (v, j) => {
+    const label = `Ingredient #${j + 1} of recipes[${i}]`;
+    const g = object(v, label, ['foodId', 'quantity', 'unit', 'note']);
+    return {
+      foodId: field(g.foodId, `${label}.foodId`, isName),
+      quantity: field(g.quantity, `${label}.quantity`, isPositive),
+      unit: field(g.unit, `${label}.unit`, isUnit),
+      note: optional(g.note, `${label}.note`, isStr),
+    };
   });
   return {
-    id: x.id, name: x.name,
-    description: isStr(x.description) ? x.description : '',
-    emoji: isStr(x.emoji) && x.emoji ? x.emoji : '🍽️',
-    servings: isNum(x.servings) && x.servings > 0 ? x.servings : 1,
-    ingredients,
-    instructions: isStr(x.instructions) ? x.instructions : undefined,
-    prepMinutes: isNum(x.prepMinutes) ? x.prepMinutes : undefined,
-    custom: x.custom === true || undefined,
+    id: field(x.id, `${name}.id`, isName), name: field(x.name, `${name}.name`, isName),
+    description: field(x.description, `${name}.description`, isStr),
+    emoji: field(x.emoji, `${name}.emoji`, isStr),
+    servings: field(x.servings, `${name}.servings`, isPositive), ingredients,
+    instructions: optional(x.instructions, `${name}.instructions`, isStr),
+    prepMinutes: optional(x.prepMinutes, `${name}.prepMinutes`, isNonNegative),
+    custom: optional(x.custom, `${name}.custom`, isBool),
   };
 }
 
-function selection(x: unknown): MealSelection | null {
-  if (!isObj(x) || !isStr(x.recipeId) || !isNum(x.servings)) return null;
-  return { id: isStr(x.id) ? x.id : Math.random().toString(36).slice(2), recipeId: x.recipeId, servings: Math.max(1, x.servings) };
+function selections(v: unknown, name: string): MealSelection[] {
+  return arr(v, name, (v, i) => {
+    const label = `${name}[${i}]`;
+    const x = object(v, label, ['id', 'recipeId', 'servings']);
+    return {
+      id: field(x.id, `${label}.id`, isName),
+      recipeId: field(x.recipeId, `${label}.recipeId`, isName),
+      servings: field(x.servings, `${label}.servings`, isPositive),
+    };
+  });
 }
-const selections = (v: unknown) => (Array.isArray(v) ? v.map(selection).filter((s): s is MealSelection => !!s) : []);
 
-function grocery(x: unknown, i: number): GroceryItem {
-  if (!isObj(x) || !isStr(x.id) || !isStr(x.name)) throw new ImportError(`Grocery item #${i + 1} is invalid.`);
+function grocery(v: unknown, i: number): GroceryItem {
+  const name = `grocery[${i}]`;
+  const x = object(v, name, ['id', 'name', 'foodId', 'category', 'quantity', 'unit', 'checked', 'source', 'fromRecipes']);
   return {
-    id: x.id, name: x.name,
-    foodId: isStr(x.foodId) ? x.foodId : undefined,
-    category: isCat(x.category) ? x.category : 'other',
-    quantity: isNum(x.quantity) ? x.quantity : null,
-    unit: isUnit(x.unit) ? x.unit : null,
-    checked: x.checked === true,
-    source: x.source === 'generated' ? 'generated' : 'manual',
-    fromRecipes: Array.isArray(x.fromRecipes) ? x.fromRecipes.filter(isStr) : undefined,
+    id: field(x.id, `${name}.id`, isName), name: field(x.name, `${name}.name`, isName),
+    foodId: optional(x.foodId, `${name}.foodId`, isName),
+    category: field(x.category, `${name}.category`, isCat),
+    quantity: field(x.quantity, `${name}.quantity`, (v): v is number | null => v === null || isNonNegative(v)),
+    unit: field(x.unit, `${name}.unit`, (v): v is Unit | null => v === null || isUnit(v)),
+    checked: field(x.checked, `${name}.checked`, isBool),
+    source: field(x.source, `${name}.source`, (v): v is GroceryItem['source'] => v === 'generated' || v === 'manual'),
+    fromRecipes: x.fromRecipes === undefined ? undefined
+      : arr(x.fromRecipes, `${name}.fromRecipes`, (v, j) => field(v, `${name}.fromRecipes[${j}]`, isStr)),
   };
 }
 
-function pantry(x: unknown, i: number): PantryItem {
-  if (!isObj(x) || !isStr(x.id) || !isStr(x.foodId) || !isNum(x.quantity) || !isUnit(x.unit)) {
-    throw new ImportError(`Pantry item #${i + 1} is invalid.`);
-  }
-  return { id: x.id, foodId: x.foodId, quantity: Math.max(0, x.quantity), unit: x.unit, available: x.available !== false };
+function pantry(v: unknown, i: number): PantryItem {
+  const name = `pantry[${i}]`;
+  const x = object(v, name, ['id', 'foodId', 'quantity', 'unit', 'available']);
+  return {
+    id: field(x.id, `${name}.id`, isName), foodId: field(x.foodId, `${name}.foodId`, isName),
+    quantity: field(x.quantity, `${name}.quantity`, isNonNegative),
+    unit: field(x.unit, `${name}.unit`, isUnit), available: field(x.available, `${name}.available`, isBool),
+  };
 }
 
-/** Parse and validate unknown JSON into AppData. Throws ImportError with a readable message. */
+/** Parse supported v1 data without coercion, omission or automatic repair. */
 export function parseAppData(input: unknown): AppData {
   if (!isObj(input)) throw new ImportError('This file is not a Larder backup.');
   if (!Array.isArray(input.foods) || !Array.isArray(input.recipes)) {
@@ -150,29 +191,25 @@ export function parseAppData(input: unknown): AppData {
   if (input.version !== DATA_VERSION) {
     throw new ImportError('This backup has an unsupported or missing data version.');
   }
-  const defaults = createDefaultData();
+  object(input, 'backup', ['version', 'foods', 'recipes', 'quick', 'week', 'grocery', 'pantry', 'settings', 'lastGeneratedAt']);
+  const sourceWeek = object(input.week, 'week', DAYS);
   const week = emptyWeek();
-  if (isObj(input.week)) {
-    for (const d of DAYS) {
-      const day = input.week[d];
-      if (isObj(day)) for (const s of SLOTS) week[d][s] = selections(day[s]);
-    }
+  for (const d of DAYS) {
+    const day = object(sourceWeek[d], `week.${d}`, SLOTS);
+    for (const s of SLOTS) week[d][s] = selections(day[s], `week.${d}.${s}`);
   }
-  const s = isObj(input.settings) ? input.settings : {};
+  const s = object(input.settings, 'settings', ['theme', 'listSource', 'subtractPantry', 'keepManualItems']);
   return {
     version: DATA_VERSION,
-    foods: arr(input.foods, 'foods', food),
-    recipes: arr(input.recipes, 'recipes', recipe),
-    quick: selections(input.quick),
-    week,
-    grocery: arr(input.grocery, 'grocery', grocery),
-    pantry: arr(input.pantry, 'pantry', pantry),
+    foods: arr(input.foods, 'foods', food), recipes: arr(input.recipes, 'recipes', recipe),
+    quick: selections(input.quick, 'quick'), week,
+    grocery: arr(input.grocery, 'grocery', grocery), pantry: arr(input.pantry, 'pantry', pantry),
     settings: {
-      theme: s.theme === 'light' || s.theme === 'dark' ? s.theme : 'system',
-      listSource: s.listSource === 'quick' || s.listSource === 'week' ? s.listSource : defaults.settings.listSource,
-      subtractPantry: s.subtractPantry !== false,
-      keepManualItems: s.keepManualItems !== false,
+      theme: field(s.theme, 'settings.theme', isTheme),
+      listSource: field(s.listSource, 'settings.listSource', isSource),
+      subtractPantry: field(s.subtractPantry, 'settings.subtractPantry', isBool),
+      keepManualItems: field(s.keepManualItems, 'settings.keepManualItems', isBool),
     },
-    lastGeneratedAt: isStr(input.lastGeneratedAt) ? input.lastGeneratedAt : undefined,
+    lastGeneratedAt: optional(input.lastGeneratedAt, 'lastGeneratedAt', isStr),
   };
 }

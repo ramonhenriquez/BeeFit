@@ -61,7 +61,7 @@ src/
 
 - All state lives in one JSON-serialisable `AppData` object (`types.ts`).
 - Persistence goes through the synchronous raw-string `StorageAdapter` (`storage.ts`) and `PersistenceSession` (`persistence.ts`), subscribed to by the React context. The adapter must throw on failures. IndexedDB/Dexie and asynchronous/cloud adapters require a separate reviewed milestone; they cannot simply replace this synchronous adapter.
-- Import runs through `parseAppData`; only data version 1 is currently supported. Shape checks are present, but full domain/referential validation is future work. A schema change needs explicit tested migrations; do not simply relabel or bump versions.
+- Import runs through `parseAppData`; only data version 1 is currently supported. Required v1 collections and fields are validated without repairs or discarded records; missing/wrong collections, malformed selections and unsupported fields cause recovery. Full domain/referential validation is future work. A schema change needs explicit tested migrations; do not simply relabel or bump versions.
 - Deleting a recipe removes it from plans; a food used by a recipe can't be deleted until it's removed from those recipes.
 
 ## Extending
@@ -73,7 +73,7 @@ src/
 
 ## Recovery and backups
 
-Startup never writes defaults. Missing data opens the normal app; malformed, invalid-schema, unsupported-version and newer-version data open a recovery screen with editing paused. Failed reads also pause replacement until a successful retry. The original raw string can be downloaded as text or copied, including invalid JSON. Use the newer Larder version for newer backups when available.
+Startup never writes defaults. Missing data opens the normal app; malformed, invalid-schema, unsupported-version and newer-version data open a recovery screen with editing paused. Failed reads also pause replacement until a successful retry. The original raw string can be downloaded as text or copied, including invalid JSON. Previously tolerated partial or malformed backups now require explicit recovery instead of being normalized; valid complete v1 backups remain compatible. Unknown fields are rejected rather than silently removed. No schema migration is introduced. Use the newer Larder version for newer backups when available.
 
 Import/reset requires confirmation. Before replacing an existing saved record, Larder preserves its exact bytes at `larder:recovery:v1`. If the recovery-copy write or replacement fails, the primary `larder:data:v1` record remains intact. Only the latest pre-replacement copy is retained; an explicit later import/reset replaces it. Export an independent file first. Settings can export/copy that previous saved record, which might itself need repair. The recovery copy is in the same browser and is not protection against browser-data clearing or device loss.
 
