@@ -72,3 +72,9 @@ src/
 ## Testing
 
 `npm test` runs the logic suite. The UI was smoke-tested end to end (plan meals → pantry → generate → add manual item → tick → regenerate → reload) at desktop and mobile widths.
+
+## GitHub Pages beta
+
+See [GitHub Pages setup](docs/GITHUB_PAGES.md) and [beta readiness / recovery PR review](docs/BETA_READINESS.md) before publishing. The deployment workflow validates pull requests and pushes, but publishes only when manually run on `main` after release review.
+
+Use `npm run build:pages` for the `/BeeFit/` site; the existing `npm run build` retains the portable single-file output. Hash navigation stays unchanged. Browser data is local to each device/browser profile and is not synchronized; use Settings JSON export/import for backups and transfers. No application secrets or personal backups belong in the published bundle.
