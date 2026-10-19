@@ -9,6 +9,8 @@ import { ShoppingPage } from './pages/Shopping';
 import { PantryPage } from './pages/Pantry';
 import { SettingsPage } from './pages/Settings';
 import { Button } from './components/ui';
+import { BeeMark } from './components/BeeMark';
+import { applyBeeFitTheme, readBeeFitTheme } from './lib/appearance';
 
 export type Page = 'dashboard' | 'foods' | 'recipes' | 'planner' | 'shopping' | 'pantry' | 'settings';
 
@@ -37,6 +39,8 @@ export function App() {
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
+  useEffect(() => { applyBeeFitTheme(readBeeFitTheme()); }, []);
+
   useEffect(() => {
     const t = data.settings.theme;
     if (t === 'system') document.documentElement.removeAttribute('data-theme');
@@ -61,7 +65,7 @@ export function App() {
     <div className="shell">
       <a href="#main" className="skip">Skip to content</a>
       <nav className="sidebar" aria-label="Main">
-        <div className="brand"><span className="brand-mark" aria-hidden>L</span><span className="brand-name">Larder</span></div>
+        <div className="brand"><span className="bee-brand-icon"><BeeMark size={38} /></span><span className="brand-name">BeeFit</span></div>
         <ul>
           {NAV.map(({ page: p, label, short, icon: Icon }) => (
             <li key={p}>
