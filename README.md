@@ -97,3 +97,9 @@ Playwright is an exact-pinned development dependency. It adds no runtime browser
 Browser tests exercise corrupt/newer/schema-invalid recovery, denied reads, quota failures, backup download/restore, confirmed reset/cancel, durable warnings, latest-edit retry, normal reload persistence and the food→recipe→planner→pantry→grocery workflow against a production build. Run all checks before review. Use disposable profiles when testing corruption or quota behavior.
 
 Inherited audit limitations remain: vulnerable Vite/Vitest tooling is not upgraded by this persistence change, so keep development/test servers loopback-only. Comprehensive import-domain validation, accessibility remediation, real-device/browser coverage, PWA behavior and IndexedDB migration are separate milestones.
+
+## GitHub Pages beta
+
+See [GitHub Pages setup](docs/GITHUB_PAGES.md) and [beta readiness / recovery PR review](docs/BETA_READINESS.md) before publishing. The deployment workflow validates pull requests and pushes, but publishes only when manually run on `main` after release review.
+
+Use `npm run build:pages` for the `/BeeFit/` site; the existing `npm run build` retains the portable single-file output. Hash navigation stays unchanged. Browser data is local to each device/browser profile and is not synchronized; use Settings JSON export/import for backups and transfers. No application secrets or personal backups belong in the published bundle.

@@ -22,7 +22,7 @@ This is schema/field validation, not complete relational validation: duplicate I
 
 ## Release gates
 
-The independent reviewer still needs to approve PR #1 and a maintainer must explicitly merge it. Neither PR may be merged automatically. After that merge, update `feat/github-pages-beta` against latest main, preserve both persistence and Pages configuration, and rerun type/unit/Chromium/build plus `/BeeFit/` static-path validation before PR #2 is merged. The historical blocker description in PR #2's BETA_READINESS.md must be reconciled at that integration step, not treated as approval now.
+PR #1 was merged into main at `0bb6d6f0758dd3f342a32ba7edcdbe13492393e4`. The deployment branch now incorporates that main revision, with conflicts resolved while preserving persistence and Pages configuration. Integrated validation is recorded in [BETA_READINESS.md](BETA_READINESS.md) and PR #2. PR #2 still requires review and an explicit merge decision; no merge or deployment is performed by this integration.
 
 Pages eligibility/settings for the private repository and actual publication remain unverified. These tests use Linux and Chromium with synthetic data and injected storage failures; Windows, other browser engines, real mobile devices and actual quota exhaustion are not certified. Existing tooling-security and UI-accessibility limitations remain separate from this focused fix. No live deployment was requested or performed.
 
@@ -36,4 +36,4 @@ Linux, Node 24.19.0, Chromium 154.0.8037.57:
 - `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:e2e`: production build passed and all 29 Chromium tests passed, none failed or skipped. This retains the previous 12 tests and adds 14 damaged-data/compatibility cases plus 3 broad original-feature regressions.
 - `git diff --check` passed.
 
-These are local execution results, not independent approval or a live Pages deployment. Deployment-path integration is deliberately deferred until the reviewed PR #1 is merged into main, as requested.
+These are local execution results, not independent approval or a live Pages deployment. Deployment-path integration was deferred in PR #1 and is now covered by the integrated PR #2 validation.
