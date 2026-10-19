@@ -1,15 +1,16 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import type { AppData, Food, Recipe } from './types';
-import { createDefaultData, localStorageAdapter, type StorageAdapter } from './lib/storage';
-
-// One context holds all app data. `update` takes a function that returns the
-// next state (never mutate the argument). Saves are debounced so typing in a
-// quantity field doesn't hammer storage.
+import { localStorageAdapter, type StorageAdapter } from './lib/storage';
+import { PersistenceSession, type PersistenceStatus } from './lib/persistence';
 
 interface Store {
   data: AppData;
   update: (fn: (d: AppData) => AppData) => void;
-  replaceAll: (d: AppData) => void;
+  replaceAll: (d: AppData) => boolean;
+  persistence: PersistenceStatus;
+  retrySave: () => boolean;
+  retryLoad: () => void;
+  readBackup: () => string | null;
   foodById: Map<string, Food>;
   recipeById: Map<string, Recipe>;
   toast: (msg: string) => void;
@@ -19,27 +20,41 @@ interface Store {
 const Ctx = createContext<Store | null>(null);
 
 export function StoreProvider({ children, adapter = localStorageAdapter }: { children: ReactNode; adapter?: StorageAdapter }) {
-  const [data, setData] = useState<AppData>(() => adapter.load() ?? createDefaultData());
+  const [session] = useState(() => new PersistenceSession(adapter));
+  const { data, persistence } = useSyncExternalStore(session.subscribe, session.getSnapshot);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const toastTimer = useRef<number>();
-  const saveTimer = useRef<number>();
 
   useEffect(() => {
-    window.clearTimeout(saveTimer.current);
-    saveTimer.current = window.setTimeout(() => adapter.save(data), 250);
-  }, [data, adapter]);
+    // No initial/default writes, no automatic retry after failure, no writes in recovery.
+    if (persistence.kind !== 'pending') return;
+    const timer = window.setTimeout(session.save, 250);
+    return () => window.clearTimeout(timer);
+  }, [data, persistence.kind, session]);
 
-  // Flush pending save when the tab is hidden or closed.
   useEffect(() => {
-    const flush = () => adapter.save(dataRef.current);
+    const flush = () => {
+      if (session.getSnapshot().persistence.kind === 'pending') session.save();
+    };
+    const onVisibility = () => { if (document.visibilityState === 'hidden') flush(); };
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      flush();
+      if (session.getSnapshot().persistence.kind === 'error') {
+        event.preventDefault();
+        event.returnValue = '';
+      }
+    };
     window.addEventListener('pagehide', flush);
-    return () => window.removeEventListener('pagehide', flush);
-  }, [adapter]);
-  const dataRef = useRef(data);
-  dataRef.current = data;
+    window.addEventListener('beforeunload', beforeUnload);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      window.removeEventListener('beforeunload', beforeUnload);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [session]);
 
-  const update = useCallback((fn: (d: AppData) => AppData) => setData((d) => fn(d)), []);
-  const replaceAll = useCallback((d: AppData) => setData(d), []);
+  useEffect(() => () => window.clearTimeout(toastTimer.current), []);
   const toast = useCallback((msg: string) => {
     setToastMsg(msg);
     window.clearTimeout(toastTimer.current);
@@ -48,11 +63,11 @@ export function StoreProvider({ children, adapter = localStorageAdapter }: { chi
 
   const foodById = useMemo(() => new Map(data.foods.map((f) => [f.id, f])), [data.foods]);
   const recipeById = useMemo(() => new Map(data.recipes.map((r) => [r.id, r])), [data.recipes]);
-
-  const value = useMemo(
-    () => ({ data, update, replaceAll, foodById, recipeById, toast, toastMsg }),
-    [data, update, replaceAll, foodById, recipeById, toast, toastMsg],
-  );
+  const value = useMemo(() => ({
+    data, persistence, update: session.update, replaceAll: session.replaceAll,
+    retrySave: session.save, retryLoad: session.retryLoad, readBackup: session.readBackup,
+    foodById, recipeById, toast, toastMsg,
+  }), [data, persistence, session, foodById, recipeById, toast, toastMsg]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
