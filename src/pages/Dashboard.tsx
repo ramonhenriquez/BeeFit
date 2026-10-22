@@ -4,6 +4,7 @@ import { DAYS, DAY_LABELS, SLOTS, SLOT_LABELS } from '../types';
 import { Button } from '../components/ui';
 import { todayKey, type PlannerTab } from './Planner';
 import type { Page } from '../App';
+import { BeeMark } from '../components/BeeMark';
 
 export function DashboardPage({ go }: { go: (p: Page, tab?: PlannerTab) => void }) {
   const { data, recipeById } = useStore();
@@ -22,25 +23,35 @@ export function DashboardPage({ go }: { go: (p: Page, tab?: PlannerTab) => void 
   ];
 
   return (
-    <section className="page">
+    <section className="page dashboard-page">
       <div className="hero">
-        <p className="hero-date">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
-        {dinner ? (
-          <>
-            <h1 className="hero-title"><span className="hero-emoji" aria-hidden>{dinner.r!.emoji}</span>{dinner.r!.name}</h1>
-            <p className="hero-sub">{SLOT_LABELS[dinner.slot]} today, for {dinner.m.servings}.{todays.length > 1 ? ` Plus ${todays.length - 1} more meal${todays.length > 2 ? 's' : ''} planned.` : ''}</p>
-          </>
-        ) : (
-          <>
-            <h1 className="hero-title">What are we eating this week?</h1>
-            <p className="hero-sub">Pick a few meals and Larder works out the shopping for you.</p>
-          </>
-        )}
-        <div className="btn-row">
-          <Button variant="primary" size="lg" icon={<CalendarDays size={20} />} onClick={() => go('planner', 'week')}>Plan the week</Button>
-          <Button size="lg" icon={<Zap size={20} />} onClick={() => go('planner', 'quick')}>Quick pick</Button>
+        <div className="hero-copy">
+          <p className="eyebrow">Better meals. Stronger habits.</p>
+          <p className="hero-date">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+          {dinner ? (
+            <>
+              <h1 className="hero-title"><span className="hero-emoji" aria-hidden>{dinner.r!.emoji}</span>{dinner.r!.name}</h1>
+              <p className="hero-sub">{SLOT_LABELS[dinner.slot]} today, for {dinner.m.servings}.{todays.length > 1 ? ` Plus ${todays.length - 1} more meal${todays.length > 2 ? 's' : ''} planned.` : ''}</p>
+            </>
+          ) : (
+            <>
+              <h1 className="hero-title">Fuel your<br /><span>next rep.</span></h1>
+              <p className="hero-sub">Good weeks start with a plan. Choose your meals. We’ll handle the shopping list.</p>
+            </>
+          )}
+          <div className="btn-row">
+            <Button variant="primary" size="lg" icon={<CalendarDays size={20} />} onClick={() => go('planner', 'week')}>Plan the week</Button>
+            <Button size="lg" icon={<Zap size={20} />} onClick={() => go('planner', 'quick')}>Quick pick</Button>
+          </div>
         </div>
+        <div className="hero-art" aria-hidden="true"><div className="hero-orbit" /><BeeMark size={200} /><span className="hero-art-caption">BUILT ONE MEAL AT A TIME</span></div>
       </div>
+
+      <section className="dashboard-metrics" aria-label="Your kitchen at a glance">
+        <div><span className="metric-number">{weekCount.toString().padStart(2, '0')}</span><span className="metric-label">Meals this week</span><CalendarDays size={19} aria-hidden /></div>
+        <div><span className="metric-number">{data.recipes.length.toString().padStart(2, '0')}</span><span className="metric-label">Recipes to explore</span><Zap size={19} aria-hidden /></div>
+        <div><span className="metric-number">{left.toString().padStart(2, '0')}</span><span className="metric-label">Items left to buy</span><ShoppingBasket size={19} aria-hidden /></div>
+      </section>
 
       <ol className="flow" aria-label="How it works">
         {steps.map((s, i) => (

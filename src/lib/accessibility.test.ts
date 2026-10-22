@@ -30,12 +30,20 @@ for (const theme of BEEFIT_THEMES) {
         ...(mode === 'dark' ? tokens(`:root[data-theme='dark'][data-gym-theme='${theme.id}']`) : {}),
       };
       const check = (foreground: string, background: string, minimum: number) => {
-        expect(contrast(values[foreground], values[background]), `${foreground} on ${background}`).toBeGreaterThanOrEqual(minimum);
+        const resolve = (name: string): string => {
+          const value = values[name];
+          const reference = value.match(/^var\((--[\w-]+)\)$/);
+          return reference ? resolve(reference[1]) : value;
+        };
+        expect(contrast(resolve(foreground), resolve(background)), `${foreground} on ${background}`).toBeGreaterThanOrEqual(minimum);
       };
       it('keeps danger, primary and hover button text at 4.5:1', () => {
         check('--on-beet', '--beet', 4.5);
         check('--on-basil', '--basil', 4.5);
         check('--on-basil', '--basil-strong', 4.5);
+        check('--on-action', '--action', 4.5);
+        check('--on-action', '--action-hover', 4.5);
+        check('--brand-ink', '--brand', 4.5);
       });
       it('keeps normal, hover, error and focus boundaries at 3:1', () => {
         for (const background of ['--bg', '--surface', '--surface-2']) {

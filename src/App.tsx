@@ -9,7 +9,7 @@ import { ShoppingPage } from './pages/Shopping';
 import { PantryPage } from './pages/Pantry';
 import { SettingsPage } from './pages/Settings';
 import { Button } from './components/ui';
-import { BeeMark } from './components/BeeMark';
+import { Brand } from './components/Brand';
 import { applyBeeFitTheme, readBeeFitTheme } from './lib/appearance';
 
 export type Page = 'dashboard' | 'foods' | 'recipes' | 'planner' | 'shopping' | 'pantry' | 'settings';
@@ -64,8 +64,9 @@ export function App() {
   return (
     <div className="shell">
       <a href="#main" className="skip">Skip to content</a>
+      <header className="mobile-brand"><Brand compact /><span className="beta-label">Beta 0.2</span></header>
       <nav className="sidebar" aria-label="Main">
-        <div className="brand"><span className="bee-brand-icon"><BeeMark size={38} /></span><span className="brand-name">BeeFit</span></div>
+        <Brand />
         <ul>
           {NAV.map(({ page: p, label, short, icon: Icon }) => (
             <li key={p}>
@@ -83,8 +84,10 @@ export function App() {
             </button>
           </li>
         </ul>
+        <div className="sidebar-note"><span className="beta-label">Beta 0.2</span><p>Small habits.<br />Stronger every day.</p></div>
       </nav>
       <main id="main" className="main">
+        <div className="app-topbar"><span>Your nutrition. In your corner.</span><span className="topbar-status"><span aria-hidden="true" />Local &amp; private</span></div>
         {persistence.kind === 'error' && (
           <aside className="persistence-warning" role="alert">
             <strong>Changes are not saved</strong>

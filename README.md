@@ -1,8 +1,11 @@
-# Larder: meal planner & grocery list generator
+# BeeFit — Plan meals. Build better.
 
 Choose meals → adjust servings → calculate ingredients → generate a shopping list → go shopping.
 
 A client-side React + TypeScript app. No backend, no account. Data is saved in the browser (localStorage) and can be exported/imported as JSON.
+
+See the [yellow-and-charcoal brand direction](docs/BRAND_DIRECTION.md) for the
+BeeFit logo, desktop/mobile previews and presentation guidelines.
 
 ## Run it
 
