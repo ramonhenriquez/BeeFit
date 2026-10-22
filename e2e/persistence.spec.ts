@@ -116,7 +116,7 @@ test('reset cancellation preserves raw bytes; confirmation archives them before 
   expect(await saved(page)).toBe(raw); expect(await checkpoint(page)).toBeNull();
   await page.getByRole('button', { name: 'Reset app', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Reset app', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'What are we eating this week?' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Fuel your\s*next rep\./ })).toBeVisible();
   expect(await checkpoint(page)).toBe(raw); expect(JSON.parse((await saved(page))!)).toEqual(createDefaultData());
   await page.getByRole('button', { name: /Settings & backup/ }).click();
   expect(await downloadText(page, 'Export previous saved copy')).toBe(raw);
@@ -128,7 +128,7 @@ test('restore a valid file only after confirmation, preserving the corrupt origi
   await page.locator('input[type=file]').setInputFiles({ name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(restored)) });
   await expect(page.getByRole('dialog')).toBeVisible(); expect(await saved(page)).toBe(raw);
   await page.getByRole('button', { name: 'Import backup', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'What are we eating this week?' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Fuel your\s*next rep\./ })).toBeVisible();
   expect(await checkpoint(page)).toBe(raw); expect(JSON.parse((await saved(page))!)).toEqual(restored);
 });
 
@@ -157,7 +157,7 @@ test('denied reads block replacement, and a retry resumes without writing defaul
   await expect(page.getByRole('button', { name: 'Reset app', exact: true })).toBeDisabled();
   await page.evaluate(() => { window.storageTest.readBlocked = false; });
   await page.getByRole('button', { name: 'Retry loading saved data' }).click();
-  await expect(page.getByRole('heading', { name: 'What are we eating this week?' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Fuel your\s*next rep\./ })).toBeVisible();
   expect(await saved(page)).toBe(raw);
   expect(await page.evaluate(() => window.storageTest.writes)).toHaveLength(0);
 });

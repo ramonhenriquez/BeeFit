@@ -1,18 +1,21 @@
 export function BeeMark({ size = 36 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 64 64" role="img" aria-label="BeeFit strong bee lifting a barbell" xmlns="http://www.w3.org/2000/svg">
+    <svg width={size} height={size} viewBox="0 0 96 96" role="img" aria-label="BeeFit strong bee lifting a barbell" xmlns="http://www.w3.org/2000/svg">
       <title>BeeFit strong bee</title>
-      <path d="M22 18C6 7 5 26 22 27M42 18C58 7 59 26 42 27" fill="#f7fafc" stroke="#192025" strokeWidth="3" strokeLinejoin="round"/>
-      <path d="M23 12 17 6M41 12 47 6" stroke="#192025" strokeWidth="3" strokeLinecap="round"/>
-      <ellipse cx="32" cy="39" rx="16" ry="19" fill="#facc15" stroke="#192025" strokeWidth="3"/>
-      <path d="M18 32h28M17 44h30" stroke="#192025" strokeWidth="6"/>
-      <circle cx="32" cy="21" r="12" fill="#facc15" stroke="#192025" strokeWidth="3"/>
-      <circle cx="28" cy="19" r="2" fill="#192025"/><circle cx="36" cy="19" r="2" fill="#192025"/>
-      <path d="M28 25q4 4 8 0" fill="none" stroke="#192025" strokeWidth="2" strokeLinecap="round"/>
-      <path d="M19 35 10 26M45 35 54 26" stroke="#facc15" strokeWidth="8" strokeLinecap="round"/>
-      <path d="M19 35 10 26M45 35 54 26" stroke="#192025" strokeWidth="2" strokeLinecap="round"/>
-      <path d="M6 21v10M3 21v10M58 21v10M61 21v10M3 26h12M49 26h12" stroke="#192025" strokeWidth="3" strokeLinecap="round"/>
-      <path d="M25 56 22 61M39 56 42 61" stroke="#192025" strokeWidth="4" strokeLinecap="round"/>
+      <g stroke="#181a1d" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M35 49C12 51 17 30 30 34l13 14M61 49c23 2 18-19 5-15L53 48" fill="#fff9e5" />
+        <path d="M33 62c-13 4-21-3-21-13V29h10v18l12-5M63 62c13 4 21-3 21-13V29H74v18L62 42" fill="#f5c842" />
+        <path d="M32 49q16-11 32 0l-2 22Q48 91 34 71Z" fill="#f5c842" />
+        <path d="M33 59h30v8H33Z" fill="#181a1d" stroke="none" />
+        <path d="m37 78-5 8h11l5-6 5 6h11l-5-8" fill="#181a1d" />
+        <path d="m39 30-5-10m23 10 5-10" fill="none" />
+        <path d="M32 37q0-14 16-14t16 14v8q-4 12-16 12T32 45Z" fill="#f5c842" />
+        <path d="m37 37 7 2m15-2-7 2" fill="none" />
+        <path d="M40 42v2m16-2v2m-13 5q5 3 10 0" fill="none" />
+        <path d="M8 23h80" fill="none" strokeWidth="4" />
+        <path d="M5 16h6v14H5Zm8-4h7v22h-7Zm63 0h7v22h-7Zm9 4h6v14h-6Z" fill="#181a1d" stroke="#f5c842" strokeWidth="1.5" />
+        <path d="M18 20v8m60-8v8" stroke="#f5c842" strokeWidth="7" />
+      </g>
     </svg>
   );
 }
