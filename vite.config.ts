@@ -7,5 +7,5 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
 export default defineConfig(({ mode }) => ({
   base: mode === 'pages' ? '/BeeFit/' : './',
   plugins: mode === 'pages' ? [react()] : [react(), viteSingleFile()],
-  test: { globals: true, environment: 'node', include: ['src/**/*.test.{ts,tsx}'] },
+  test: { globals: true, environment: 'node', include: ['src/**/*.test.{ts,tsx}'], css: { include: /styles\.css/ } },
 }));
